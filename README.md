@@ -18,10 +18,10 @@ docker compose --profile full up -d --build
 Add to **this directory’s** `.env` (or export) so the `api` service uses S3 CAS against MinIO:
 
 ```env
-S3_ENDPOINT_URL=http://minio:9000
-S3_ACCESS_KEY=minioadmin
-S3_SECRET_KEY=minioadmin
-S3_BUCKET_CAS=zeno-cas
+S3_ENDPOINT_URL=placeholder
+S3_ACCESS_KEY=placeholder
+S3_SECRET_KEY=placeholder
+S3_BUCKET_CAS=placeholder
 CAS_STORAGE_BACKEND=auto
 ```
 
