@@ -11,7 +11,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zeno_admin}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zeno_admin} -d ${POSTGRES_DB:-zeno_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
