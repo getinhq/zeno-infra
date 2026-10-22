@@ -1,0 +1,14 @@
+# Builds zeno-dashboard and serves it with Caddy (HTTPS + /api reverse proxy).
+# Build context: the zeno-repos directory (see docker-compose.prod.yml).
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY zeno-dashboard/package.json zeno-dashboard/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY zeno-dashboard/ ./
+# Same-origin API (Caddy proxies /api), auth on.
+ENV VITE_API_URL="" VITE_ENABLE_AUTH="true"
+RUN npm run build
+
+FROM caddy:2.8-alpine
+COPY zeno-infra/deploy/Caddyfile /etc/caddy/Caddyfile
+COPY --from=build /app/dist /srv

@@ -1,0 +1,124 @@
+# Hosted Zeno: one server for many studios (multi-tenant).
+#   cp .env.prod.example .env.prod   # fill it in
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+# See HOSTING.md.
+name: zeno
+
+x-api-env: &api-env
+  APP_ENV: production
+  ENABLE_AUTH: "true"
+  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD_URLENCODED}@postgres:5432/${POSTGRES_DB}
+  REDIS_URL: redis://redis:6379/0
+  MONGO_URI: mongodb://mongodb:27017/${POSTGRES_DB}
+  ZENO_JWT_SECRET: ${ZENO_JWT_SECRET}
+  ZENO_PUBLIC_APP_URL: https://${ZENO_PUBLIC_HOST}
+  ZENO_ALLOW_SIGNUP: ${ZENO_ALLOW_SIGNUP:-true}
+  ZENO_LAUNCH_MINT_SECRET: ${ZENO_LAUNCH_MINT_SECRET}
+  CAS_STORAGE_BACKEND: ${CAS_STORAGE_BACKEND:-nas}
+  ZENO_CAS_ROOT: /data/cas
+  S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+  S3_BUCKET_CAS: ${S3_BUCKET_CAS:-zeno-cas}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+  ZENO_SMTP_HOST: ${ZENO_SMTP_HOST:-}
+  ZENO_SMTP_PORT: ${ZENO_SMTP_PORT:-587}
+  ZENO_SMTP_USERNAME: ${ZENO_SMTP_USERNAME:-}
+  ZENO_SMTP_PASSWORD: ${ZENO_SMTP_PASSWORD:-}
+  ZENO_SMTP_FROM: ${ZENO_SMTP_FROM:-}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --appendfsync everysec
+    volumes:
+      - redis_data:/data
+
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+
+  schema-init:
+    build: ../../zeno-api
+    image: zeno-api:prod
+    command: ["python", "-m", "schema.apply_schema"]
+    environment: *api-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: zeno-api:prod
+    restart: unless-stopped
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "${API_WORKERS:-2}", "--proxy-headers", "--forwarded-allow-ips", "*"]
+    environment: *api-env
+    volumes:
+      - cas_data:/data/cas
+    depends_on:
+      schema-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+      mongodb:
+        condition: service_started
+
+  web:
+    build:
+      context: ../..
+      dockerfile: zeno-infra/deploy/Dockerfile.web
+    image: zeno-web:prod
+    restart: unless-stopped
+    environment:
+      ZENO_DOMAIN: ${ZENO_DOMAIN}
+    ports:
+      - "${WEB_HTTP_PORT:-80}:80"
+      - "${WEB_HTTPS_PORT:-443}:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./backup.sh:/backup.sh:ro
+      - backups:/backups
+    entrypoint: ["/bin/sh", "/backup.sh"]
+    depends_on:
+      schema-init:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:
+  redis_data:
+  mongo_data:
+  cas_data:
+  caddy_data:
+  caddy_config:
+  backups:

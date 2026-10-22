@@ -1,0 +1,25 @@
+# ZENO_DOMAIN is a hostname (zeno.example.com) for automatic Let's Encrypt HTTPS,
+# or e.g. "localhost:8443" for a local test with Caddy's internal certificate.
+{$ZENO_DOMAIN} {
+	encode zstd gzip
+
+	@api path /api/* /health /docs /openapi.json
+	handle @api {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		root * /srv
+		# Single-page app: unknown paths (e.g. /invite/<token>) load index.html.
+		try_files {path} /index.html
+		file_server
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
