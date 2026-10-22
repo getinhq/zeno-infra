@@ -127,6 +127,19 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T postgres 
 Published files are not in the database dump: back up the `cas_data` volume (or rely on your
 S3 provider's durability/versioning).
 
+### Storage integrity
+
+Check that every file the database references is still stored (also in Settings → Storage
+health, per studio):
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec api python -m app.storage_check --orphans
+```
+
+It exits with code 1 when something is broken, so it can run nightly from cron and alert you.
+`--orphans` counts stored files nothing references any more (nothing is deleted). Turn on
+bucket versioning if you use S3: a deleted file can then be recovered.
+
 ## Health
 
 `https://zeno.example.com/health` reports Postgres, Redis, MongoDB and storage status.
