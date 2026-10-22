@@ -25,6 +25,9 @@ x-api-env: &api-env
   ZENO_SMTP_USERNAME: ${ZENO_SMTP_USERNAME:-}
   ZENO_SMTP_PASSWORD: ${ZENO_SMTP_PASSWORD:-}
   ZENO_SMTP_FROM: ${ZENO_SMTP_FROM:-}
+  # Review media: parallel ffmpeg conversions and the upload size limit.
+  ZENO_REVIEW_WORKERS: ${ZENO_REVIEW_WORKERS:-1}
+  ZENO_REVIEW_MAX_UPLOAD_MB: ${ZENO_REVIEW_MAX_UPLOAD_MB:-4096}
 
 services:
   postgres:

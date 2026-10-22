@@ -68,6 +68,16 @@ each other's projects or versions; a file can only be fetched by someone who alr
 Fill the `ZENO_SMTP_*` values (any SMTP provider: Postmark, SES, Mailgun, Gmail app password…).
 Without SMTP, the Team page shows a link to copy and share in Discord/Slack — invites work either way.
 
+## Review media
+
+Playblasts and renders submitted for review are converted on the server with ffmpeg (included
+in the API image) into frame-accurate H.264 proxies, thumbnails and scrub strips; originals and
+proxies are stored in the same file storage as published files. Conversion runs inside the API
+container, `ZENO_REVIEW_WORKERS` at a time (default 1; each job uses about 1-2 CPU cores), and
+interrupted jobs resume when the API restarts. Uploads are capped by `ZENO_REVIEW_MAX_UPLOAD_MB`
+(default 4096). Client review links (`/r/<token>`) work without an account; they need nothing
+extra from the proxy.
+
 ## Artists' machines
 
 1. Install **Zeno Bridge** (see `zeno-bridge/README.md`) and give it your server:
@@ -83,7 +93,9 @@ Without SMTP, the Team page shows a link to copy and share in Discord/Slack — 
 
 2. **Open in DCC** from the dashboard launches Blender already signed in as that artist
    (the launch carries a 24-hour token).
-3. Starting Blender by hand instead? Create a token under **Account → API tokens** and paste it in
+3. Optional: add a local media viewer (DJV, OpenRV) under `"viewers"` in the same config (and to
+   `executable_allowlist`) to get an **Open in DJV** button on reviews for full-quality inspection.
+4. Starting Blender by hand instead? Create a token under **Account → API tokens** and paste it in
    the add-on preferences (or set `ZENO_API_TOKEN`).
 
 ## Upgrades
